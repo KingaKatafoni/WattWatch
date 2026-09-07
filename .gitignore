@@ -4,3 +4,4 @@ target/
 .DS_Store
 *.zip
 .mvn/wrapper/maven-wrapper.jar
+src/main/resources/application.properties
