@@ -5,6 +5,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -17,8 +18,11 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class EntsoeService {
@@ -90,14 +94,20 @@ public class EntsoeService {
     }
 
     public String fetchDayAheadPrices() {
+        LocalDate today = LocalDate.now().minusDays(1);
+        String periodStart = today.format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "0000";
+        String periodEnd = today.plusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "0000";
+
+        System.out.println("periodStart: " + periodStart);
+        System.out.println("periodEnd: " + periodEnd);
         String response = webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .queryParam("securityToken", apiToken)
                         .queryParam("documentType", "A44")
                         .queryParam("in_Domain", "10YPL-AREA-----S")
                         .queryParam("out_Domain", "10YPL-AREA-----S")
-                        .queryParam("periodStart", "202609070000")
-                        .queryParam("periodEnd", "202609080000")
+                        .queryParam("periodStart", periodStart)
+                        .queryParam("periodEnd", periodEnd)
                         .build())
                 .retrieve()
                 .bodyToMono(String.class)
@@ -119,7 +129,10 @@ public class EntsoeService {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document doc = builder.parse(new InputSource(new StringReader(xml)));
-        NodeList points = doc.getElementsByTagName("price.amount");
+        NodeList timeSeriesPoints = doc.getElementsByTagName("TimeSeries");
+        Element firstTimeSeries = (Element) timeSeriesPoints.item(0);
+        NodeList points = firstTimeSeries.getElementsByTagName("price.amount");
+
 
         List<BigDecimal> prices = new ArrayList<>();
         for (int i = 0; i < points.getLength(); i++) {
